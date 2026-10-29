@@ -8,6 +8,7 @@ enum PaymentProvider: string
     case PixDirect = 'pix_direct';
     case MercadoPago = 'mercadopago';
     case Sicoob = 'sicoob';
+    case Nwc = 'nwc';
     case BtcPay = 'btcpay';
 
     public function label(): string
@@ -17,6 +18,7 @@ enum PaymentProvider: string
             self::Sicoob => 'Sicoob (Pix)',
             self::BtcPay => 'BTCPay Server',
             self::PixDirect => 'Pix direto',
+            self::Nwc => 'Carteira Lightning (NWC)',
         };
     }
 
@@ -29,6 +31,7 @@ enum PaymentProvider: string
             self::MercadoPago => [OnlinePaymentMethod::Pix, OnlinePaymentMethod::Card],
             self::Sicoob, self::PixDirect => [OnlinePaymentMethod::Pix],
             self::BtcPay => [OnlinePaymentMethod::Bitcoin],
+            self::Nwc => [OnlinePaymentMethod::Lightning],
         };
     }
 
@@ -37,7 +40,7 @@ enum PaymentProvider: string
      */
     public function refundsAutomatically(): bool
     {
-        return ! in_array($this, [self::BtcPay, self::PixDirect], true);
+        return ! in_array($this, [self::BtcPay, self::PixDirect, self::Nwc], true);
     }
 
     /**

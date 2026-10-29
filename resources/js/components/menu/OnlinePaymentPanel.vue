@@ -7,7 +7,11 @@ import { show as menuShow } from '@/routes/menu';
 import { payment as paymentStatus } from '@/routes/menu/orders';
 
 export type OnlinePaymentInfo = {
-    method: 'online_pix' | 'online_card' | 'online_bitcoin';
+    method:
+        | 'online_pix'
+        | 'online_card'
+        | 'online_bitcoin'
+        | 'online_lightning';
     methodLabel: string;
     provider: string;
     confirmedByStore: boolean;
@@ -17,6 +21,10 @@ export type OnlinePaymentInfo = {
     pixCode: string | null;
     pixQrSvg: string | null;
     checkoutUrl: string | null;
+    paymentRequest: string | null;
+    paymentRequestQrSvg: string | null;
+    assetAmount: number | null;
+    rate: string | null;
     expiresAt: string | null;
 };
 
@@ -77,13 +85,17 @@ async function check(): Promise<void> {
     }
 }
 
+const sats = new Intl.NumberFormat('pt-BR');
+
 async function copy(): Promise<void> {
-    if (!props.payment.pixCode) {
+    const code = props.payment.pixCode ?? props.payment.paymentRequest;
+
+    if (!code) {
         return;
     }
 
     try {
-        await navigator.clipboard.writeText(props.payment.pixCode);
+        await navigator.clipboard.writeText(code);
         copied.value = true;
         setTimeout(() => (copied.value = false), 2500);
     } catch {
@@ -155,6 +167,43 @@ onBeforeUnmount(() => {
                 </p>
             </template>
 
+            <template v-else-if="payment.paymentRequest">
+                <div
+                    v-if="payment.paymentRequestQrSvg"
+                    class="size-56 rounded-2xl border bg-white p-2 [&_svg]:size-full"
+                    role="img"
+                    aria-label="QR Code Lightning"
+                    v-html="payment.paymentRequestQrSvg"
+                />
+                <p v-if="payment.assetAmount !== null" class="text-sm">
+                    <strong class="tabular-nums"
+                        >{{ sats.format(payment.assetAmount) }} sats</strong
+                    >
+                    <template v-if="payment.rate">
+                        · cotação de
+                        {{
+                            formatCents(Math.round(Number(payment.rate) * 100))
+                        }}
+                        por bitcoin</template
+                    >
+                </p>
+                <a
+                    :href="`lightning:${payment.paymentRequest}`"
+                    class="flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-brand to-brand-accent px-4 py-3.5 font-medium text-white shadow-lg shadow-brand/25"
+                >
+                    <Bitcoin class="size-5" />
+                    Abrir na carteira
+                </a>
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 font-medium"
+                    @click="copy"
+                >
+                    <Copy class="size-4" />
+                    {{ copied ? 'Fatura copiada!' : 'Copiar fatura Lightning' }}
+                </button>
+            </template>
+
             <a
                 v-else-if="payment.checkoutUrl"
                 :href="payment.checkoutUrl"
@@ -186,7 +235,9 @@ onBeforeUnmount(() => {
                 {{
                     payment.confirmedByStore
                         ? 'Pix direto para a conta da loja, sem intermediários.'
-                        : `Pagamento processado por ${payment.provider}.`
+                        : payment.method === 'online_lightning'
+                          ? 'Direto para a carteira da loja, sem intermediários.'
+                          : `Pagamento processado por ${payment.provider}.`
                 }}
             </p>
         </template>

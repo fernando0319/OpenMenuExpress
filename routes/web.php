@@ -249,6 +249,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('sicoob', [OnlinePaymentsController::class, 'sicoob'])->middleware('throttle:10,1')->name('sicoob');
                 Route::post('btcpay', [OnlinePaymentsController::class, 'btcpay'])->middleware('throttle:10,1')->name('btcpay');
                 Route::post('pix-direct', [OnlinePaymentsController::class, 'pixDirect'])->middleware('throttle:10,1')->name('pix-direct');
+                Route::post('nwc', [OnlinePaymentsController::class, 'nwc'])->middleware('throttle:10,1')->name('nwc');
                 Route::put('{account}', [OnlinePaymentsController::class, 'update'])->name('update');
                 Route::delete('{account}', [OnlinePaymentsController::class, 'destroy'])->name('destroy');
             });

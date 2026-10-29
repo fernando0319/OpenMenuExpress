@@ -8,7 +8,7 @@ Passo a passo para colocar o OpenMenuExpress no ar no seu domínio.
 | ------- | ----------------------------------------------------------------------------------------------------------------- |
 | Sistema | Ubuntu 22.04 ou 24.04                                                                                             |
 | Memória | 2 GB (4 GB recomendado)                                                                                           |
-| PHP     | 8.3 ou 8.4, com bcmath, ctype, curl, fileinfo, gd, intl, mbstring, openssl, pdo_mysql, pcntl, tokenizer, xml, zip |
+| PHP     | 8.3 ou 8.4, com bcmath, ctype, curl, fileinfo, gd, gmp, intl, mbstring, openssl, pdo_mysql, pcntl, tokenizer, xml, zip |
 | Banco   | MySQL 8.0+ ou MariaDB 10.6+ (MySQL 5.6/5.7 **não** funcionam: faltam tipos usados pelo sistema)                   |
 | Web     | nginx com PHP-FPM                                                                                                 |
 | Outros  | Composer 2, Supervisor, cron. Node **não** é necessário (o build é feito no GitHub)                               |

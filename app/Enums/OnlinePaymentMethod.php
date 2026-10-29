@@ -11,6 +11,7 @@ enum OnlinePaymentMethod: string
     case Pix = 'online_pix';
     case Card = 'online_card';
     case Bitcoin = 'online_bitcoin';
+    case Lightning = 'online_lightning';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum OnlinePaymentMethod: string
             self::Pix => 'Pix (pague agora)',
             self::Card => 'Cartão de crédito online',
             self::Bitcoin => 'Bitcoin',
+            self::Lightning => 'Bitcoin Lightning (pague agora)',
         };
     }
 
@@ -30,6 +32,7 @@ enum OnlinePaymentMethod: string
             self::Pix => 'Pix online',
             self::Card => 'Cartão online',
             self::Bitcoin => 'Bitcoin',
+            self::Lightning => 'Lightning',
         };
     }
 }

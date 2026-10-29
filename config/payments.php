@@ -31,4 +31,18 @@ return [
     'btcpay' => [
         'timeout' => 15,
     ],
+
+    // Lightning through the store's own wallet (Nostr Wallet Connect, NIP-47).
+    'nwc' => [
+        // Seconds to wait for the wallet to answer through the relay.
+        'timeout' => (int) env('NWC_TIMEOUT', 10),
+    ],
+
+    // Price of bitcoin in reais: the median of the public sources that answer, kept for a minute.
+    // A charge keeps the rate it was created with, so the customer pays exactly what was shown.
+    'quotes' => [
+        'ttl' => (int) env('QUOTES_TTL_SECONDS', 60),
+        'sources' => array_values(array_filter(explode(',', (string) env('QUOTES_SOURCES', 'coinbase,binance,mercadobitcoin,coingecko')))),
+        'timeout' => 5,
+    ],
 ];

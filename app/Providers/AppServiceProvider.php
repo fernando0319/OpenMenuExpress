@@ -8,6 +8,8 @@ use App\Messaging\Evolution\EvolutionClient;
 use App\Messaging\EvolutionMessagingProvider;
 use App\Messaging\LogMessagingProvider;
 use App\Models\User;
+use App\Payments\Nwc\NwcClient;
+use App\Payments\Nwc\RelayNwcClient;
 use App\Services\Push\PushTransport;
 use App\Services\Push\WebPushTransport;
 use App\Support\CurrentStore;
@@ -28,6 +30,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(CurrentStore::class);
 
         $this->app->singleton(PushTransport::class, WebPushTransport::class);
+
+        $this->app->singleton(NwcClient::class, RelayNwcClient::class);
 
         $this->app->singleton(EvolutionClient::class, fn (): EvolutionClient => new EvolutionClient(
             (string) config('messaging.evolution.url'),

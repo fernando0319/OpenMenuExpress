@@ -249,6 +249,11 @@ class PublicMenuController extends Controller
             'pixCode' => $open ? $payment->pix_code : null,
             'pixQrSvg' => $open && $payment->pix_code !== null ? $this->qrSvg($payment->pix_code) : null,
             'checkoutUrl' => $open ? $payment->checkout_url : null,
+            // Lightning: the invoice, its QR code (upper case reads faster) and the satoshis at the locked rate.
+            'paymentRequest' => $open ? $payment->payment_request : null,
+            'paymentRequestQrSvg' => $open && $payment->payment_request !== null ? $this->qrSvg('lightning:'.strtoupper($payment->payment_request)) : null,
+            'assetAmount' => $payment->asset !== null && $payment->asset_units !== null ? $payment->asset_units : null,
+            'rate' => $payment->rate,
             'expiresAt' => $payment->expires_at?->toIso8601String(),
         ];
     }

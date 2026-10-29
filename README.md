@@ -39,7 +39,7 @@ O projeto foi pensado para ser **operado localmente**: quem tem capacidade técn
 
 ## Rodando localmente
 
-Requisitos: PHP 8.3+ (extensões `mbstring`, `openssl`, `pdo_sqlite`, `intl`, `zip`, `curl`), Composer 2 e Node 22+.
+Requisitos: PHP 8.3+ (extensões `mbstring`, `openssl`, `pdo_sqlite`, `intl`, `zip`, `curl`, `gmp`), Composer 2 e Node 22+. A `gmp` é usada pela criptografia do Lightning (Nostr Wallet Connect); no Windows, ative `extension=gmp` no `php.ini`.
 
 ```bash
 git clone https://github.com/fernando0319/OpenMenuExpress.git
@@ -73,7 +73,11 @@ Para uso de uma loja só, deixe `BILLING_ENABLED=false`: nada é bloqueado e os 
 
 #### Pagamento online (direto na conta da loja)
 
-Módulo **Pagamento online**: em Configurações › Pagamento online a loja conecta **Mercado Pago** (Pix com QR na tela e cartão pelo Checkout Pro; por OAuth se `MERCADOPAGO_CLIENT_ID/SECRET` estiverem configurados, ou colando o Access Token), **Sicoob** (API Pix padrão Bacen: Client ID, chave Pix e certificado, guardado criptografado) e **BTCPay Server** (Bitcoin on-chain/Lightning: endereço, chave de API e Store ID). O dinheiro vai direto para a conta da loja. O pedido pago online nasce "aguardando pagamento" e só entra para a loja (alerta, impressão, WhatsApp) quando o pagamento é confirmado; o status é sempre relido na API do provedor. Sem pagamento em `PAYMENTS_EXPIRATION_MINUTES`, o pedido é cancelado. Cancelar um pedido pago estorna no Mercado Pago e no Sicoob (no BTCPay o estorno é manual). Os avisos chegam em `/api/webhooks/payments/{token}` (o `APP_URL` precisa ser público em https) e o comando `app:sync-online-payments`, agendado a cada minuto, cobre avisos perdidos. Antes de usar em produção, homologue cada provedor com uma conta de teste.
+Módulo **Pagamento online**: em Configurações › Pagamento online a loja ativa o **Pix direto** (só a chave Pix: o cardápio mostra o QR Code oficial com o valor do pedido, e alguém do caixa confirma o recebimento no painel, no pedido marcado "Pix a confirmar"), conecta uma **carteira Lightning por Nostr Wallet Connect** (o cliente paga em sats na cotação do momento, mediana de várias fontes públicas, travada na cobrança; a carteira cria a fatura e os sats caem direto nela; use uma conexão só com permissão de criar e consultar faturas), **Mercado Pago** (Pix com QR na tela e cartão pelo Checkout Pro; por OAuth se `MERCADOPAGO_CLIENT_ID/SECRET` estiverem configurados, ou colando o Access Token), **Sicoob** (API Pix padrão Bacen: Client ID, chave Pix e certificado, guardado criptografado) e **BTCPay Server** (Bitcoin on-chain/Lightning: endereço, chave de API e Store ID). O dinheiro vai direto para a conta da loja. O pedido pago online nasce "aguardando pagamento" e só entra para a loja (alerta, impressão, WhatsApp) quando o pagamento é confirmado; o status é sempre relido na API do provedor. Sem pagamento em `PAYMENTS_EXPIRATION_MINUTES`, o pedido é cancelado. Cancelar um pedido pago estorna no Mercado Pago e no Sicoob (no BTCPay o estorno é manual). Os avisos chegam em `/api/webhooks/payments/{token}` (o `APP_URL` precisa ser público em https) e o comando `app:sync-online-payments`, agendado a cada minuto, cobre avisos perdidos. Antes de usar em produção, homologue cada provedor com uma conta de teste.
+
+#### Recebimentos
+
+Em **Recebimentos** (dono e gerente, em qualquer plano) fica tudo o que entrou e saiu: vendas e estornos do caixa e pagamentos online, em cada moeda, com a quantidade recebida (centavos ou satoshis) e o valor em reais no momento. Mostra os totais do mês por moeda e por forma de pagamento e exporta para Excel. Em instalações anteriores a essa função, rode `php artisan app:rebuild-ledger` uma vez para registrar o histórico.
 
 #### Financeiro
 

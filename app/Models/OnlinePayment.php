@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Asset;
 use App\Enums\OnlinePaymentMethod;
 use App\Enums\PaymentProvider;
 use App\Services\Ledger\Ledger;
@@ -24,6 +25,10 @@ use Illuminate\Support\Facades\DB;
  * @property string $status pending | paid | expired | failed | refunded
  * @property int $amount_cents
  * @property string|null $pix_code
+ * @property string|null $payment_request Lightning invoice (BOLT11)
+ * @property Asset|null $asset what the charge is priced in, when not reais
+ * @property int|null $asset_units locked quantity, in the asset's smallest unit
+ * @property string|null $rate locked reais per whole unit
  * @property string|null $checkout_url
  * @property CarbonImmutable|null $expires_at
  * @property CarbonImmutable|null $paid_at
@@ -35,7 +40,8 @@ use Illuminate\Support\Facades\DB;
  */
 #[Fillable([
     'store_id', 'order_id', 'payment_account_id', 'provider', 'method', 'provider_ref', 'status', 'amount_cents',
-    'pix_code', 'checkout_url', 'expires_at', 'paid_at', 'refunded_at', 'last_checked_at', 'note',
+    'pix_code', 'payment_request', 'asset', 'asset_units', 'rate', 'checkout_url', 'expires_at', 'paid_at', 'refunded_at',
+    'last_checked_at', 'note',
 ])]
 class OnlinePayment extends Model
 {
@@ -71,6 +77,9 @@ class OnlinePayment extends Model
             'provider' => PaymentProvider::class,
             'method' => OnlinePaymentMethod::class,
             'amount_cents' => 'integer',
+            'asset' => Asset::class,
+            'asset_units' => 'integer',
+            'rate' => 'decimal:2',
             'expires_at' => 'datetime',
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',

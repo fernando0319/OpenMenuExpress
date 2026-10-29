@@ -30,7 +30,7 @@ type Account = {
 };
 
 type ProviderRow = {
-    provider: 'pix_direct' | 'mercadopago' | 'sicoob' | 'btcpay';
+    provider: 'pix_direct' | 'mercadopago' | 'sicoob' | 'nwc' | 'btcpay';
     label: string;
     methods: { value: string; label: string }[];
     refundsAutomatically: boolean;
@@ -129,6 +129,7 @@ const pixKeyTypes = [
     { value: 'email', label: 'E-mail' },
     { value: 'random', label: 'Chave aleatória' },
 ];
+const nwc = useForm({ connection: '' });
 
 function saveSicoob(): void {
     sicoob.post(OnlinePaymentsController.sicoob.url(), {
@@ -251,7 +252,9 @@ function saveSicoob(): void {
                         {{
                             provider.provider === 'pix_direct'
                                 ? 'no app do banco'
-                                : 'no BTCPay'
+                                : provider.provider === 'nwc'
+                                  ? 'na sua carteira'
+                                  : 'no BTCPay'
                         }}.</template
                     >
                 </p>
@@ -470,6 +473,43 @@ function saveSicoob(): void {
                         provider.account ? 'Atualizar' : 'Ativar Pix direto'
                     }}</Button>
                 </div>
+            </form>
+
+            <!-- Carteira Lightning (NWC) -->
+            <form
+                v-else-if="provider.provider === 'nwc'"
+                class="grid gap-2"
+                @submit.prevent="
+                    nwc.post(OnlinePaymentsController.nwc.url(), {
+                        preserveScroll: true,
+                        onSuccess: () => nwc.reset(),
+                    })
+                "
+            >
+                <Label for="nwc-connection"
+                    >Código de conexão da carteira</Label
+                >
+                <div class="flex flex-wrap gap-2">
+                    <Input
+                        id="nwc-connection"
+                        v-model="nwc.connection"
+                        type="password"
+                        class="min-w-64 flex-1 font-mono"
+                        placeholder="nostr+walletconnect://..."
+                        autocomplete="off"
+                    />
+                    <Button type="submit" :disabled="nwc.processing">{{
+                        provider.account ? 'Trocar carteira' : 'Conectar'
+                    }}</Button>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                    Na sua carteira Lightning compatível com NWC (como o Alby
+                    Hub), crie uma conexão "Nostr Wallet Connect" só com
+                    permissão para receber: criar e consultar faturas. O cliente
+                    paga o valor em sats na cotação do momento, e os sats caem
+                    direto na sua carteira.
+                </p>
+                <InputError :message="nwc.errors.connection" />
             </form>
 
             <!-- BTCPay -->

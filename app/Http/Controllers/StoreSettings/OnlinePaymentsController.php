@@ -12,6 +12,9 @@ use App\Payments\ClientCertificate;
 use App\Payments\Gateways\BtcPayGateway;
 use App\Payments\Gateways\MercadoPagoGateway;
 use App\Payments\Gateways\SicoobPixGateway;
+use App\Payments\Nwc\NwcClient;
+use App\Payments\Nwc\NwcCodec;
+use App\Payments\Nwc\NwcConnection;
 use App\Payments\PaymentException;
 use App\Support\BrazilianDocument;
 use Illuminate\Http\RedirectResponse;
@@ -248,6 +251,47 @@ class OnlinePaymentsController extends Controller
         }
 
         return $key;
+    }
+
+    /**
+     * Lightning into the store's own wallet: the merchant pastes the Nostr Wallet Connect code
+     * the wallet generated. It is checked with the wallet before being saved.
+     */
+    public function nwc(Request $request, NwcClient $client): RedirectResponse
+    {
+        $data = $request->validate(['connection' => ['required', 'string', 'max:1000']], [
+            'connection.required' => 'Cole o código de conexão gerado pela sua carteira.',
+        ]);
+
+        try {
+            $connection = NwcConnection::parse($data['connection']);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['connection' => $exception->getMessage()]);
+        }
+
+        try {
+            $info = $client->info($connection);
+        } catch (PaymentException $exception) {
+            throw ValidationException::withMessages(['connection' => 'A carteira não respondeu: '.$exception->getMessage()]);
+        }
+
+        $missing = array_diff(['make_invoice', 'lookup_invoice'], $info['methods']);
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages(['connection' => 'Esta conexão não permite criar e consultar faturas. Na carteira, dê as permissões de receber pagamentos.']);
+        }
+
+        $account = $this->save($this->currentStore(), PaymentProvider::Nwc, [
+            'connection' => trim($data['connection']),
+            'encryption' => NwcCodec::preferredEncryption($info['encryptions']),
+        ], $connection->label());
+
+        // Receiving needs no spending: a connection that can pay is a risk if the server leaks.
+        if (in_array('pay_invoice', $info['methods'], true)) {
+            $account->update(['last_error' => 'Esta conexão também permite pagar com a sua carteira. Para mais segurança, crie uma só para receber.']);
+        }
+
+        return $this->connected('Carteira Lightning conectada.');
     }
 
     public function btcpay(Request $request, BtcPayGateway $gateway): RedirectResponse

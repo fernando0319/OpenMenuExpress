@@ -14,6 +14,7 @@ use App\Models\Store;
 use App\Models\User;
 use App\Payments\Gateways\BtcPayGateway;
 use App\Payments\Gateways\MercadoPagoGateway;
+use App\Payments\Gateways\NwcGateway;
 use App\Payments\Gateways\PixDirectGateway;
 use App\Payments\Gateways\SicoobPixGateway;
 use App\Services\Billing\Subscription;
@@ -41,6 +42,7 @@ final class OnlinePayments
             PaymentProvider::Sicoob => app(SicoobPixGateway::class),
             PaymentProvider::BtcPay => app(BtcPayGateway::class),
             PaymentProvider::PixDirect => app(PixDirectGateway::class),
+            PaymentProvider::Nwc => app(NwcGateway::class),
         };
     }
 
@@ -160,6 +162,10 @@ final class OnlinePayments
         $payment->update([
             'provider_ref' => $charge->providerRef,
             'pix_code' => $charge->pixCode,
+            'payment_request' => $charge->paymentRequest,
+            'asset' => $charge->asset,
+            'asset_units' => $charge->assetUnits,
+            'rate' => $charge->rate,
             'checkout_url' => $charge->checkoutUrl,
             'expires_at' => $charge->expiresAt ?? $context->expiresAt,
             'last_checked_at' => now(),
