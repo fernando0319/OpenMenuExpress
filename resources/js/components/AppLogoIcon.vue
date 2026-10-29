@@ -14,7 +14,7 @@ defineProps<Props>();
 
 <template>
     <img
-        src="/images/logo-me.png"
+        src="/images/logo-me-BW.png"
         alt="OpenMenuExpress"
         :class="['object-contain', className]"
         v-bind="$attrs"

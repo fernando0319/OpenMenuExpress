@@ -182,9 +182,9 @@ const gradient = 'bg-gradient-to-r from-[#7b5cff] via-[#f45ff0] to-[#ff7a3d]';
             >
                 <a href="#inicio" class="flex items-center">
                     <img
-                        src="/images/logo-menu-express.png"
+                        src="/images/logo-menu-express-BW.png"
                         alt="OpenMenuExpress"
-                        class="h-5 w-auto sm:h-6"
+                        class="h-4 w-auto sm:h-5"
                     />
                 </a>
                 <nav
@@ -578,9 +578,9 @@ const gradient = 'bg-gradient-to-r from-[#7b5cff] via-[#f45ff0] to-[#ff7a3d]';
                 />
                 <div class="relative mx-auto max-w-2xl">
                     <img
-                        src="/images/logo-me-wide.png"
+                        src="/images/logo-menu-express-BW.png"
                         alt=""
-                        class="mx-auto mb-6 h-12 w-auto"
+                        class="mx-auto mb-6 h-8 w-auto max-w-full sm:h-12"
                     />
                     <h2
                         class="text-3xl font-semibold tracking-tight sm:text-4xl"
@@ -611,7 +611,7 @@ const gradient = 'bg-gradient-to-r from-[#7b5cff] via-[#f45ff0] to-[#ff7a3d]';
                 class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-zinc-500 sm:flex-row"
             >
                 <img
-                    src="/images/logo-menu-express.png"
+                    src="/images/logo-menu-express-BW.png"
                     alt="OpenMenuExpress"
                     class="h-4 w-auto"
                 />
