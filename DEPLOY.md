@@ -52,7 +52,7 @@ DB_DATABASE=menu_express
 DB_USERNAME=menu_express
 DB_PASSWORD=...
 
-MAIL_MAILER=smtp               # recuperação de senha e avisos
+MAIL_MAILER=smtp               # obrigatório: confirmação de e-mail, recuperação de senha e avisos
 MESSAGING_DRIVER=evolution     # EVOLUTION_* com o prefixo mx-
 BILLING_ENABLED=true
 ```
@@ -82,11 +82,21 @@ No GitHub, em _Settings → Secrets and variables → Actions_:
 **Voltar uma versão:** `ln -sfn releases/<anterior> current && php current/artisan queue:restart`
 (migrações novas continuam aplicadas; desfaça com `migrate:rollback` só se necessário).
 
-Depois do primeiro deploy, dê acesso ao painel administrativo:
+Depois do primeiro deploy, dê acesso ao painel administrativo. Não existe usuário nem senha
+padrão: o administrador é uma conta comum que recebe o acesso pelo servidor.
+
+1. Crie sua conta em `https://seudominio.com.br/register`.
+2. Confirme o e-mail pelo link recebido. O painel exige conta confirmada, por isso o SMTP
+   precisa estar configurado antes (em desenvolvimento, com `MAIL_MAILER=log`, o link fica em
+   `storage/logs/laravel.log`).
+3. Libere o acesso e entre em `/admin`:
 
 ```bash
 php current/artisan app:super-admin seu@email.com
 ```
+
+Não rode `db:seed` em produção: o seeder só cria uma conta de teste, de senha conhecida, e é
+ignorado fora de `APP_ENV=local`.
 
 ## 4. Backups
 

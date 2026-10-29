@@ -15,7 +15,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // The test account has a known password ("password"): never create it outside development.
+        if (! app()->environment('local', 'testing')) {
+            $this->command->warn('Seeder ignorado: a conta de teste só é criada em APP_ENV=local.');
+
+            return;
+        }
 
         User::factory()->create([
             'name' => 'Test User',
