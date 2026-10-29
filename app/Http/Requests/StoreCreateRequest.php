@@ -15,7 +15,7 @@ class StoreCreateRequest extends FormRequest
      */
     public const RESERVED_SLUGS = [
         'www', 'api', 'app', 'admin', 'assinatura', 'billing', 'painel', 'mail', 'static', 'cdn', 'status', 'suporte', 'build', 'assets', 'finance', 'financeiro',
-        'caixa', 'cash', 'catalog', 'couriers', 'deliveries', 'dashboard', 'email', 'entregador', 'entregadores', 'entregas', 'equipe', 'forgot-password', 'login', 'logout', 'marketing', 'mesas', 'orders', 'passkeys', 'pdv', 'pos', 'register', 'relatorios', 'reports',
+        'caixa', 'cash', 'catalog', 'couriers', 'deliveries', 'dashboard', 'email', 'entregador', 'entregadores', 'entregas', 'equipe', 'forgot-password', 'ledger', 'login', 'logout', 'marketing', 'mesas', 'orders', 'passkeys', 'pdv', 'pos', 'register', 'relatorios', 'reports',
         'reset-password', 'settings', 'storage', 'store-settings', 'store-status', 'stores', 'tables', 'team', 'two-factor-challenge', 'up', 'user',
     ];
 

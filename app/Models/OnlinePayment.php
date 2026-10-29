@@ -4,10 +4,12 @@ namespace App\Models;
 
 use App\Enums\OnlinePaymentMethod;
 use App\Enums\PaymentProvider;
+use App\Services\Ledger\Ledger;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 /**
  * One charge of an order at a provider (a Pix code, a card checkout, a Bitcoin invoice).
@@ -46,6 +48,17 @@ class OnlinePayment extends Model
     public const FAILED = 'failed';
 
     public const REFUNDED = 'refunded';
+
+    protected static function booted(): void
+    {
+        // Paid or refunded: the ledger records it once the change is committed. A failure there is
+        // logged and never blocks the payment; app:rebuild-ledger records it later.
+        static::updated(function (OnlinePayment $payment): void {
+            if ($payment->wasChanged('status') && in_array($payment->status, [self::PAID, self::REFUNDED], true)) {
+                DB::afterCommit(fn () => rescue(fn () => app(Ledger::class)->recordOnlinePayment($payment->fresh() ?? $payment)));
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

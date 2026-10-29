@@ -2,6 +2,7 @@
 
 namespace App\Payments\Gateways;
 
+use App\Enums\Asset;
 use App\Enums\OnlinePaymentMethod;
 use App\Models\OnlinePayment;
 use App\Models\PaymentAccount;
@@ -9,8 +10,11 @@ use App\Payments\Charge;
 use App\Payments\ChargeContext;
 use App\Payments\PaymentException;
 use App\Payments\PaymentGateway;
+use App\Payments\ReceivedAsset;
+use App\Payments\ReportsReceivedAsset;
 use App\Payments\WebhookReference;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
@@ -22,7 +26,7 @@ use Illuminate\Support\Str;
  * The invoice is priced in reais; BTCPay converts and the coins go to the store's wallet.
  * Refunds are made by the merchant in BTCPay itself.
  */
-final class BtcPayGateway implements PaymentGateway
+final class BtcPayGateway implements PaymentGateway, ReportsReceivedAsset
 {
     public function createCharge(PaymentAccount $account, OnlinePayment $payment, OnlinePaymentMethod $method, ChargeContext $context): Charge
     {
@@ -67,6 +71,40 @@ final class BtcPayGateway implements PaymentGateway
     public function refund(PaymentAccount $account, OnlinePayment $payment): bool
     {
         return false;
+    }
+
+    /**
+     * The bitcoin paid on the invoice, on-chain and Lightning together (BTCPay states both in BTC).
+     */
+    public function receivedAsset(PaymentAccount $account, OnlinePayment $payment): ?ReceivedAsset
+    {
+        try {
+            $response = $this->api($account)->get(
+                $this->storePath($account).'/invoices/'.rawurlencode((string) $payment->provider_ref).'/payment-methods',
+            );
+        } catch (ConnectionException $exception) {
+            throw new PaymentException('O BTCPay não respondeu: '.$exception->getMessage());
+        }
+
+        $methods = $this->json($response);
+
+        $sats = 0;
+
+        foreach ($methods as $method) {
+            if (! is_array($method)) {
+                continue;
+            }
+
+            // "BTC-CHAIN", "BTC-LN", "BTC-LNURL" (BTCPay 2) or "BTC", "BTC-LightningNetwork" (BTCPay 1).
+            $id = (string) ($method['paymentMethodId'] ?? $method['paymentMethod'] ?? '');
+            $paid = $method['paymentMethodPaid'] ?? $method['totalPaid'] ?? null;
+
+            if (str_starts_with(strtoupper($id), 'BTC') && is_scalar($paid)) {
+                $sats += Asset::Btc->toUnits((string) $paid) ?? 0;
+            }
+        }
+
+        return $sats > 0 ? new ReceivedAsset(Asset::Btc, $sats) : null;
     }
 
     /**

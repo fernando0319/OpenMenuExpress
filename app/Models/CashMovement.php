@@ -4,10 +4,12 @@ namespace App\Models;
 
 use App\Enums\CashMovementType;
 use App\Enums\PaymentMethod;
+use App\Services\Ledger\Ledger;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -26,6 +28,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CashMovement extends Model
 {
     public const UPDATED_AT = null;
+
+    protected static function booted(): void
+    {
+        // Sales and refunds go to the ledger once the cash register has committed them. A failure
+        // there is logged and never undoes the sale; app:rebuild-ledger records it later.
+        static::created(fn (CashMovement $movement) => DB::afterCommit(fn () => rescue(fn () => app(Ledger::class)->recordCashMovement($movement))));
+    }
 
     /**
      * Get the attributes that should be cast.

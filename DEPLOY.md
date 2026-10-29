@@ -79,6 +79,11 @@ No GitHub, em _Settings → Secrets and variables → Actions_:
 - `DEPLOY_ON_PUSH=true` publica sozinho a cada push na `main` que passar nos testes.
   Sem ela, publique pela aba _Actions → deploy → Run workflow_.
 
+**Instalações anteriores ao razão de recebimentos:** depois de atualizar, rode uma vez
+`php current/artisan app:rebuild-ledger` para registrar as vendas e os pagamentos já feitos.
+Pode repetir quando quiser: nada é duplicado, e quantidades de bitcoin que o provedor não
+informou na hora são completadas.
+
 **Voltar uma versão:** `ln -sfn releases/<anterior> current && php current/artisan queue:restart`
 (migrações novas continuam aplicadas; desfaça com `migrate:rollback` só se necessário).
 

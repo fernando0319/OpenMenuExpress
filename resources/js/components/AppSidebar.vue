@@ -38,6 +38,7 @@ import {
     Route,
     Navigation,
     Store,
+    BookOpenCheck,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -81,6 +82,7 @@ import { show as menuShow } from '@/routes/menu';
 import { switchMethod as switchStore } from '@/routes/stores';
 import { index as ordersIndex } from '@/routes/orders';
 import { index as reportsIndex } from '@/routes/reports';
+import { index as ledgerIndex } from '@/routes/ledger';
 import { show as posShow } from '@/routes/pos';
 import { edit as appearanceEdit } from '@/routes/store-settings/appearance';
 import { edit as contactEdit } from '@/routes/store-settings/contact';
@@ -162,6 +164,11 @@ const mainNavItems = computed<NavItem[]>(() => {
 
     if (currentStore.value?.canManageFinance) {
         items.push(
+            {
+                title: 'Recebimentos',
+                href: ledgerIndex(),
+                icon: BookOpenCheck,
+            },
             {
                 title: 'Financeiro',
                 href: financeOverview(),

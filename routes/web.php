@@ -24,6 +24,7 @@ use App\Http\Controllers\Finance\InstallmentController;
 use App\Http\Controllers\Finance\OverviewController as FinanceOverviewController;
 use App\Http\Controllers\Finance\SupplierController;
 use App\Http\Controllers\Finance\TitleController;
+use App\Http\Controllers\LedgerController;
 use App\Http\Controllers\Marketing\BannerController;
 use App\Http\Controllers\Marketing\CouponController;
 use App\Http\Controllers\Orders\NetworkDeliveryController;
@@ -144,6 +145,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::middleware(['can:manage-store', 'module:reports'])->group(function () {
             Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
             Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
+        });
+
+        // The record of money in and out: part of the store's books, whatever the plan.
+        Route::middleware('can:manage-finance')->group(function () {
+            Route::get('ledger', [LedgerController::class, 'index'])->name('ledger.index');
+            Route::get('ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
         });
 
         Route::prefix('finance')->name('finance.')->middleware(['can:manage-finance', 'module:finance'])->group(function () {
