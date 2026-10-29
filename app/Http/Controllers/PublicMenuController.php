@@ -242,6 +242,7 @@ class PublicMenuController extends Controller
             'method' => $payment->method->value,
             'methodLabel' => $payment->method->orderLabel(),
             'provider' => $payment->provider->label(),
+            'confirmedByStore' => $payment->provider->confirmsManually(),
             'status' => $payment->status,
             'statusLabel' => $payment->statusLabel(),
             'amountCents' => $payment->amount_cents,

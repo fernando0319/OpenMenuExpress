@@ -27,6 +27,7 @@ type OrderRow = {
     deliveryFeeCents: number;
     status: string;
     statusLabel: string;
+    awaitingConfirmation: boolean;
     nextAction: { value: string; label: string } | null;
     totalCents: number;
     placedAt: string;
@@ -257,6 +258,12 @@ const timeFormat = new Intl.DateTimeFormat('pt-BR', {
                         </td>
                         <td class="px-4 py-2">
                             <Badge
+                                v-if="order.awaitingConfirmation"
+                                class="bg-amber-500 text-white"
+                                >Pix a confirmar</Badge
+                            >
+                            <Badge
+                                v-else
                                 :variant="
                                     order.status === 'pending'
                                         ? 'default'
@@ -284,7 +291,14 @@ const timeFormat = new Intl.DateTimeFormat('pt-BR', {
                                 </Link>
                             </Button>
                             <Button
-                                v-if="order.nextAction"
+                                v-if="order.awaitingConfirmation"
+                                as-child
+                                size="sm"
+                            >
+                                <Link :href="show(order.id)">Conferir Pix</Link>
+                            </Button>
+                            <Button
+                                v-else-if="order.nextAction"
                                 size="sm"
                                 :variant="
                                     order.status === 'pending'

@@ -13,6 +13,7 @@ use App\Payments\Gateways\BtcPayGateway;
 use App\Payments\Gateways\MercadoPagoGateway;
 use App\Payments\Gateways\SicoobPixGateway;
 use App\Payments\PaymentException;
+use App\Support\BrazilianDocument;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -54,9 +55,13 @@ class OnlinePaymentsController extends Controller
                         'clientId' => $account->credential('client_id'),
                         'serverUrl' => $account->credential('server_url'),
                         'storeId' => $account->credential('store_id'),
+                        'pixKeyType' => $account->credential('pix_key_type'),
+                        'merchantName' => $account->credential('merchant_name'),
+                        'merchantCity' => $account->credential('merchant_city'),
                     ],
                 ];
             }, PaymentProvider::cases()),
+            'storeDefaults' => ['name' => $this->currentStore()->name, 'city' => $this->currentStore()->address_city],
             'mercadoPagoOAuth' => filled(config('payments.mercadopago.client_id')) && filled(config('payments.mercadopago.client_secret')),
             'expirationMinutes' => (int) config('payments.expiration_minutes'),
         ]);
@@ -181,6 +186,68 @@ class OnlinePaymentsController extends Controller
         }
 
         return $this->connected('Conta Sicoob conectada.');
+    }
+
+    /**
+     * Pix straight to the store's key: no bank API, the store confirms each payment in the panel.
+     */
+    public function pixDirect(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'pix_key_type' => ['required', Rule::in(['cpf', 'cnpj', 'phone', 'email', 'random'])],
+            'pix_key' => ['required', 'string', 'max:77'],
+            'merchant_name' => ['required', 'string', 'max:60'],
+            'merchant_city' => ['required', 'string', 'max:60'],
+        ], [
+            'pix_key.required' => 'Informe a chave Pix que vai receber os pagamentos.',
+            'merchant_name.required' => 'Informe o nome do recebedor, como aparece no banco.',
+            'merchant_city.required' => 'Informe a cidade da loja.',
+        ]);
+
+        $key = self::pixKey($data['pix_key_type'], $data['pix_key']);
+
+        if ($key === null) {
+            throw ValidationException::withMessages(['pix_key' => 'Esta chave não confere com o tipo escolhido.']);
+        }
+
+        $credentials = [
+            'pix_key_type' => $data['pix_key_type'],
+            'pix_key' => $key,
+            'merchant_name' => trim($data['merchant_name']),
+            'merchant_city' => trim($data['merchant_city']),
+        ];
+
+        $this->save($this->currentStore(), PaymentProvider::PixDirect, $credentials, 'Chave Pix '.$key);
+
+        return $this->connected('Pix direto ativado.');
+    }
+
+    /**
+     * The key as the Pix network expects it, or null when it does not match its type.
+     */
+    private static function pixKey(string $type, string $input): ?string
+    {
+        $input = trim($input);
+        $digits = preg_replace('/\D/', '', $input) ?? '';
+
+        $key = match ($type) {
+            'cpf' => strlen($digits) === 11 ? $digits : null,
+            'cnpj' => strlen($digits) === 14 ? $digits : null,
+            'phone' => match (true) {
+                in_array(strlen($digits), [10, 11], true) => '+55'.$digits,
+                str_starts_with($digits, '55') && in_array(strlen($digits), [12, 13], true) => '+'.$digits,
+                default => null,
+            },
+            'email' => filter_var($input, FILTER_VALIDATE_EMAIL) !== false ? mb_strtolower($input) : null,
+            'random' => preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $input) === 1 ? strtolower($input) : null,
+            default => null,
+        };
+
+        if (in_array($type, ['cpf', 'cnpj'], true) && $key !== null && BrazilianDocument::normalize($key) === null) {
+            return null;
+        }
+
+        return $key;
     }
 
     public function btcpay(Request $request, BtcPayGateway $gateway): RedirectResponse

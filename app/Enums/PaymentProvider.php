@@ -4,6 +4,8 @@ namespace App\Enums;
 
 enum PaymentProvider: string
 {
+    // The settings screen lists them in this order: the one that needs no contract first.
+    case PixDirect = 'pix_direct';
     case MercadoPago = 'mercadopago';
     case Sicoob = 'sicoob';
     case BtcPay = 'btcpay';
@@ -14,6 +16,7 @@ enum PaymentProvider: string
             self::MercadoPago => 'Mercado Pago',
             self::Sicoob => 'Sicoob (Pix)',
             self::BtcPay => 'BTCPay Server',
+            self::PixDirect => 'Pix direto',
         };
     }
 
@@ -24,7 +27,7 @@ enum PaymentProvider: string
     {
         return match ($this) {
             self::MercadoPago => [OnlinePaymentMethod::Pix, OnlinePaymentMethod::Card],
-            self::Sicoob => [OnlinePaymentMethod::Pix],
+            self::Sicoob, self::PixDirect => [OnlinePaymentMethod::Pix],
             self::BtcPay => [OnlinePaymentMethod::Bitcoin],
         };
     }
@@ -34,6 +37,14 @@ enum PaymentProvider: string
      */
     public function refundsAutomatically(): bool
     {
-        return $this !== self::BtcPay;
+        return ! in_array($this, [self::BtcPay, self::PixDirect], true);
+    }
+
+    /**
+     * No provider tells the system the money arrived: the store checks its bank app and confirms.
+     */
+    public function confirmsManually(): bool
+    {
+        return $this === self::PixDirect;
     }
 }

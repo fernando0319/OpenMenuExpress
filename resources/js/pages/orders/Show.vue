@@ -49,6 +49,13 @@ type OrderDetail = {
     } | null;
     paymentMethod: string;
     paidAt: string | null;
+    paymentToConfirm: {
+        provider: string;
+        amountCents: number;
+        reference: string | null;
+        expiresAt: string | null;
+        canConfirm: boolean;
+    } | null;
     payments: { method: string; cents: number }[];
     canReceive: boolean;
     courierId: number | null;
@@ -142,9 +149,39 @@ function formatDate(value: string | null): string {
     return value ? dateTime.format(new Date(value)) : '';
 }
 
+// While a Pix straight to the store waits for confirmation, confirming is the way forward.
 const forwardStatuses = computed(() =>
-    props.order.nextStatuses.filter((status) => status.value !== 'cancelled'),
+    props.order.paymentToConfirm
+        ? []
+        : props.order.nextStatuses.filter(
+              (status) => status.value !== 'cancelled',
+          ),
 );
+
+const confirming = ref(false);
+
+function confirmPayment(): void {
+    const payment = props.order.paymentToConfirm;
+
+    if (
+        !payment ||
+        !confirm(
+            `Confirmar que ${formatCents(payment.amountCents)} caíram na conta da loja?`,
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        OrderController.confirmPayment.url(props.order.id),
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => (confirming.value = true),
+            onFinish: () => (confirming.value = false),
+        },
+    );
+}
 
 const canCancel = computed(() =>
     props.order.nextStatuses.some((status) => status.value === 'cancelled'),
@@ -317,6 +354,44 @@ const messageStatusLabel: Record<string, string> = {
                     <PrinterIcon />
                     Imprimir
                 </Button>
+            </div>
+
+            <div
+                v-if="order.paymentToConfirm"
+                class="flex flex-col gap-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4"
+            >
+                <div>
+                    <p class="font-semibold">Pix a confirmar</p>
+                    <p class="text-sm text-muted-foreground">
+                        Confira no app do banco se entrou um Pix de
+                        <strong class="text-foreground">{{
+                            formatCents(order.paymentToConfirm.amountCents)
+                        }}</strong>
+                        de {{ order.customerName
+                        }}<template v-if="order.paymentToConfirm.reference">
+                            (identificador
+                            <span class="font-mono">{{
+                                order.paymentToConfirm.reference
+                            }}</span
+                            >)</template
+                        >. O pedido só vai para a cozinha depois da confirmação.
+                    </p>
+                    <p
+                        v-if="order.paymentToConfirm.expiresAt"
+                        class="text-xs text-muted-foreground"
+                    >
+                        Cancela sozinho se não for confirmado até
+                        {{ formatDate(order.paymentToConfirm.expiresAt) }}.
+                    </p>
+                </div>
+                <div v-if="order.paymentToConfirm.canConfirm">
+                    <Button :disabled="confirming" @click="confirmPayment">
+                        Confirmar recebimento
+                    </Button>
+                </div>
+                <p v-else class="text-sm">
+                    Peça a quem opera o caixa para confirmar o recebimento.
+                </p>
             </div>
 
             <div

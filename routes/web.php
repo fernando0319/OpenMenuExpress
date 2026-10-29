@@ -127,6 +127,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('orders/{order}/network-delivery', [NetworkDeliveryController::class, 'store'])->middleware('throttle:20,1')->name('orders.network.store');
             Route::delete('orders/{order}/network-delivery', [NetworkDeliveryController::class, 'destroy'])->name('orders.network.destroy');
             Route::post('orders/{order}/payment', [OrderController::class, 'receivePayment'])->middleware('module:pos')->name('orders.payment.store');
+            Route::post('orders/{order}/payment/confirm', [OrderController::class, 'confirmPayment'])->name('orders.payment.confirm');
             Route::get('couriers', [CourierMapController::class, 'index'])->middleware('module:couriers')->name('couriers.map');
 
             Route::get('pos', [PosController::class, 'show'])->middleware('module:pos')->name('pos.show');
@@ -240,6 +241,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('mercadopago/token', [OnlinePaymentsController::class, 'mercadoPagoToken'])->middleware('throttle:10,1')->name('mercadopago.token');
                 Route::post('sicoob', [OnlinePaymentsController::class, 'sicoob'])->middleware('throttle:10,1')->name('sicoob');
                 Route::post('btcpay', [OnlinePaymentsController::class, 'btcpay'])->middleware('throttle:10,1')->name('btcpay');
+                Route::post('pix-direct', [OnlinePaymentsController::class, 'pixDirect'])->middleware('throttle:10,1')->name('pix-direct');
                 Route::put('{account}', [OnlinePaymentsController::class, 'update'])->name('update');
                 Route::delete('{account}', [OnlinePaymentsController::class, 'destroy'])->name('destroy');
             });

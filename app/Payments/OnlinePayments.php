@@ -11,8 +11,10 @@ use App\Models\OnlinePayment;
 use App\Models\Order;
 use App\Models\PaymentAccount;
 use App\Models\Store;
+use App\Models\User;
 use App\Payments\Gateways\BtcPayGateway;
 use App\Payments\Gateways\MercadoPagoGateway;
+use App\Payments\Gateways\PixDirectGateway;
 use App\Payments\Gateways\SicoobPixGateway;
 use App\Services\Billing\Subscription;
 use App\Services\Orders\ChangeOrderStatus;
@@ -38,7 +40,52 @@ final class OnlinePayments
             PaymentProvider::MercadoPago => app(MercadoPagoGateway::class),
             PaymentProvider::Sicoob => app(SicoobPixGateway::class),
             PaymentProvider::BtcPay => app(BtcPayGateway::class),
+            PaymentProvider::PixDirect => app(PixDirectGateway::class),
         };
+    }
+
+    /**
+     * The open charge the store itself must confirm (Pix straight to its key), if any.
+     */
+    public function awaitingConfirmation(Order $order): ?OnlinePayment
+    {
+        if ($order->status !== OrderStatus::PendingPayment) {
+            return null;
+        }
+
+        return $order->onlinePayments()
+            ->where('status', OnlinePayment::PENDING)
+            ->whereIn('provider', self::manualProviders())
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * The store saw the money in its bank app: the order goes on like any paid order.
+     */
+    public function confirmManually(Order $order, User $by): bool
+    {
+        $payment = $this->awaitingConfirmation($order);
+
+        if ($payment === null) {
+            return false;
+        }
+
+        $payment->update(['note' => mb_substr("Recebimento confirmado por {$by->name}", 0, 255)]);
+        $this->apply($payment, OnlinePayment::PAID);
+
+        return true;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function manualProviders(): array
+    {
+        return array_values(array_map(
+            fn (PaymentProvider $provider) => $provider->value,
+            array_filter(PaymentProvider::cases(), fn (PaymentProvider $provider) => $provider->confirmsManually()),
+        ));
     }
 
     /**

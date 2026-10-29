@@ -10,6 +10,7 @@ export type OnlinePaymentInfo = {
     method: 'online_pix' | 'online_card' | 'online_bitcoin';
     methodLabel: string;
     provider: string;
+    confirmedByStore: boolean;
     status: 'pending' | 'paid' | 'expired' | 'failed' | 'refunded';
     statusLabel: string;
     amountCents: number;
@@ -118,8 +119,12 @@ onBeforeUnmount(() => {
                     }}
                 </h2>
                 <p class="text-sm text-muted-foreground">
-                    {{ formatCents(payment.amountCents) }} · o pedido vai para a
-                    loja assim que o pagamento for confirmado.
+                    {{ formatCents(payment.amountCents) }} ·
+                    {{
+                        payment.confirmedByStore
+                            ? 'a loja confere o Pix e confirma o seu pedido em seguida.'
+                            : 'o pedido vai para a loja assim que o pagamento for confirmado.'
+                    }}
                 </p>
             </div>
 
@@ -178,7 +183,11 @@ onBeforeUnmount(() => {
                 }}</strong>
             </p>
             <p class="text-xs text-muted-foreground">
-                Pagamento processado por {{ payment.provider }}.
+                {{
+                    payment.confirmedByStore
+                        ? 'Pix direto para a conta da loja, sem intermediários.'
+                        : `Pagamento processado por ${payment.provider}.`
+                }}
             </p>
         </template>
 

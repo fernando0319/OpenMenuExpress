@@ -9,12 +9,14 @@ use App\Http\Controllers\Concerns\InteractsWithCurrentStore;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pos\ReceivePaymentRequest;
 use App\Models\MessageLog;
+use App\Models\OnlinePayment;
 use App\Models\Order;
 use App\Models\OrderChange;
 use App\Models\OrderItem;
 use App\Models\OrderItemOption;
 use App\Models\OrderStatusChange;
 use App\Models\User;
+use App\Payments\OnlinePayments;
 use App\Printing\PrintQueue;
 use App\Services\Cash\CashRegister;
 use App\Services\Cash\Settlement;
@@ -47,19 +49,23 @@ class OrderController extends Controller
             'status' => ['nullable', Rule::in(['open', 'all', ...array_column(OrderStatus::cases(), 'value')])],
         ])['status'] ?? 'open';
 
-        // Orders waiting for an online payment are not the store's yet.
-        $finalStatuses = [
-            ...array_filter(OrderStatus::cases(), fn (OrderStatus $status) => $status->isFinal()),
-            OrderStatus::PendingPayment,
-        ];
+        $finalStatuses = array_filter(OrderStatus::cases(), fn (OrderStatus $status) => $status->isFinal());
+        $awaitingConfirmation = fn ($query) => $query->where('status', OnlinePayment::PENDING)->whereIn('provider', OnlinePayments::manualProviders());
 
         $orders = $this->currentStore()->orders()
-            ->when($filter === 'open', fn ($query) => $query->whereNotIn('status', $finalStatuses))
+            ->when($filter === 'open', fn ($query) => $query
+                ->whereNotIn('status', $finalStatuses)
+                // Orders waiting for an online payment are not the store's yet, except a Pix
+                // straight to its key: only the store can see the money and confirm it.
+                ->where(fn ($query) => $query
+                    ->where('status', '!=', OrderStatus::PendingPayment)
+                    ->orWhereHas('onlinePayments', $awaitingConfirmation)))
             ->when(! in_array($filter, ['open', 'all'], true), fn ($query) => $query->where('status', $filter))
             ->latest('placed_at')
             ->latest('id')
             ->with('courier:id,name')
             ->withExists(['networkDeliveries as network_active' => fn ($query) => $query->whereIn('status', NetworkDeliveryStatus::active())])
+            ->withExists(['onlinePayments as awaiting_confirmation' => $awaitingConfirmation])
             ->paginate(30)
             ->withQueryString()
             ->through(fn (Order $order) => [
@@ -74,7 +80,8 @@ class OrderController extends Controller
                 'deliveryFeeCents' => $order->delivery_fee_cents,
                 'status' => $order->status->value,
                 'statusLabel' => $order->status->label(),
-                'nextAction' => $this->mainNextStatus($order),
+                'awaitingConfirmation' => self::awaitingConfirmation($order),
+                'nextAction' => self::awaitingConfirmation($order) ? null : $this->mainNextStatus($order),
                 'totalCents' => $order->total_cents,
                 'placedAt' => $order->placed_at->toIso8601String(),
                 'scheduledFor' => SlotLabel::describe($order->scheduled_for, $this->currentStore()->timezone, CarbonImmutable::now()),
@@ -98,12 +105,13 @@ class OrderController extends Controller
         ]);
     }
 
-    public function show(Order $order, CashRegister $register, StorePaymentMethods $paymentMethods, DeliveryTracking $tracking, Dispatcher $dispatcher): Response
+    public function show(Order $order, CashRegister $register, StorePaymentMethods $paymentMethods, DeliveryTracking $tracking, Dispatcher $dispatcher, OnlinePayments $onlinePayments): Response
     {
         $this->ensureBelongsToCurrentStore($order);
 
         $order->load(['items.options', 'statusHistory.user', 'courier:id,name', 'changes.user']);
         $receivedCents = $register->receivedCents($order);
+        $toConfirm = $onlinePayments->awaitingConfirmation($order);
 
         return Inertia::render('orders/Show', [
             'order' => [
@@ -131,6 +139,14 @@ class OrderController extends Controller
                 ],
                 'paymentMethod' => $order->paymentLabel(),
                 'paidAt' => $order->paid_at?->toIso8601String(),
+                // A Pix straight to the store's key: someone checks the bank app and confirms.
+                'paymentToConfirm' => $toConfirm === null ? null : [
+                    'provider' => $toConfirm->provider->label(),
+                    'amountCents' => $toConfirm->amount_cents,
+                    'reference' => $toConfirm->provider_ref,
+                    'expiresAt' => $toConfirm->expires_at?->toIso8601String(),
+                    'canConfirm' => Gate::allows('operate-pos'),
+                ],
                 'courierId' => $order->courier_id,
                 'courierName' => $order->courier?->name,
                 'canAssignCourier' => $order->fulfillment === Fulfillment::Delivery && ! $order->status->isFinal(),
@@ -205,6 +221,27 @@ class OrderController extends Controller
     /**
      * Moves the order on. "Out for delivery" may carry the courier chosen at that moment.
      */
+    /**
+     * The money of a Pix straight to the store's key showed up in its bank app.
+     */
+    public function confirmPayment(Request $request, Order $order, OnlinePayments $onlinePayments): RedirectResponse
+    {
+        $this->ensureBelongsToCurrentStore($order);
+        $user = $request->user();
+
+        abort_unless($user instanceof User, 403);
+
+        if (! $onlinePayments->confirmManually($order, $user)) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => "Pedido nº {$order->number} não tem pagamento a confirmar."]);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Pedido nº {$order->number}: pagamento confirmado."]);
+
+        return back();
+    }
+
     public function updateStatus(Request $request, Order $order, ChangeOrderStatus $changeStatus, DeliveryTracking $tracking): RedirectResponse
     {
         $this->ensureBelongsToCurrentStore($order);
@@ -326,6 +363,14 @@ class OrderController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * Listed with "awaiting_confirmation": a Pix straight to the store's key not confirmed yet.
+     */
+    private static function awaitingConfirmation(Order $order): bool
+    {
+        return $order->status === OrderStatus::PendingPayment && (bool) $order->getAttribute('awaiting_confirmation');
     }
 
     /**

@@ -262,7 +262,7 @@ class OnlinePaymentTest extends TestCase
         $this->assertSame(['online_pix'], $mp->fresh()?->methods);
 
         $this->actingAs($this->owner)->get(route('store-settings.online-payments.edit'))
-            ->assertInertia(fn (Assert $page) => $page->component('store-settings/OnlinePayments')->where('providers.0.account.label', 'loja@exemplo.com'));
+            ->assertInertia(fn (Assert $page) => $page->component('store-settings/OnlinePayments')->where('providers.1.provider', 'mercadopago')->where('providers.1.account.label', 'loja@exemplo.com'));
 
         $other = Store::factory()->create();
         $foreign = $other->paymentAccounts()->create(['provider' => 'btcpay', 'methods' => [], 'credentials' => [], 'webhook_token' => str_repeat('a', 48)]);

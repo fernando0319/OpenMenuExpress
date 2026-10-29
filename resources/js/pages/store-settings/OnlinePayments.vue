@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import OnlinePaymentsController from '@/actions/App/Http/Controllers/StoreSettings/OnlinePaymentsController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import NativeSelect from '@/components/NativeSelect.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,10 +24,13 @@ type Account = {
     clientId: string | null;
     serverUrl: string | null;
     storeId: string | null;
+    pixKeyType: string | null;
+    merchantName: string | null;
+    merchantCity: string | null;
 };
 
 type ProviderRow = {
-    provider: 'mercadopago' | 'sicoob' | 'btcpay';
+    provider: 'pix_direct' | 'mercadopago' | 'sicoob' | 'btcpay';
     label: string;
     methods: { value: string; label: string }[];
     refundsAutomatically: boolean;
@@ -35,6 +39,7 @@ type ProviderRow = {
 
 const props = defineProps<{
     providers: ProviderRow[];
+    storeDefaults: { name: string; city: string | null };
     mercadoPagoOAuth: boolean;
     expirationMinutes: number;
 }>();
@@ -107,6 +112,23 @@ const btcpay = useForm({
     api_key: '',
     store_id: row('btcpay').account?.storeId ?? '',
 });
+const pixDirect = useForm({
+    pix_key_type: row('pix_direct').account?.pixKeyType ?? 'cnpj',
+    pix_key: row('pix_direct').account?.pixKey ?? '',
+    merchant_name:
+        row('pix_direct').account?.merchantName ?? props.storeDefaults.name,
+    merchant_city:
+        row('pix_direct').account?.merchantCity ??
+        props.storeDefaults.city ??
+        '',
+});
+const pixKeyTypes = [
+    { value: 'cnpj', label: 'CNPJ' },
+    { value: 'cpf', label: 'CPF' },
+    { value: 'phone', label: 'Celular' },
+    { value: 'email', label: 'E-mail' },
+    { value: 'random', label: 'Chave aleatória' },
+];
 
 function saveSicoob(): void {
     sicoob.post(OnlinePaymentsController.sicoob.url(), {
@@ -134,6 +156,11 @@ function saveSicoob(): void {
                 <li>
                     O pedido só chega para a loja (e só imprime) depois que o
                     pagamento é confirmado.
+                </li>
+                <li>
+                    No Pix direto não há empresa no meio: o pedido aparece no
+                    painel como "Pix a confirmar", e alguém da equipe confere o
+                    app do banco e confirma.
                 </li>
                 <li>
                     O cliente tem {{ expirationMinutes }} minutos para pagar;
@@ -220,8 +247,12 @@ function saveSicoob(): void {
                     Se duas contas recebem o mesmo meio (ex.: Pix no Sicoob e no
                     Mercado Pago), vale a última que você marcar.
                     <template v-if="!provider.refundsAutomatically">
-                        Estornos de pedidos cancelados são feitos por você no
-                        BTCPay.</template
+                        Estornos de pedidos cancelados são feitos por você
+                        {{
+                            provider.provider === 'pix_direct'
+                                ? 'no app do banco'
+                                : 'no BTCPay'
+                        }}.</template
                     >
                 </p>
             </template>
@@ -373,6 +404,71 @@ function saveSicoob(): void {
                         }}
                         Sicoob</Button
                     >
+                </div>
+            </form>
+
+            <!-- Pix direto -->
+            <form
+                v-else-if="provider.provider === 'pix_direct'"
+                class="grid gap-3 sm:grid-cols-2"
+                @submit.prevent="
+                    pixDirect.post(OnlinePaymentsController.pixDirect.url(), {
+                        preserveScroll: true,
+                    })
+                "
+            >
+                <div class="grid gap-2">
+                    <Label for="pix-type">Tipo de chave</Label>
+                    <NativeSelect
+                        id="pix-type"
+                        v-model="pixDirect.pix_key_type"
+                    >
+                        <option
+                            v-for="type in pixKeyTypes"
+                            :key="type.value"
+                            :value="type.value"
+                        >
+                            {{ type.label }}
+                        </option>
+                    </NativeSelect>
+                </div>
+                <div class="grid gap-2">
+                    <Label for="pix-key">Chave Pix que recebe</Label>
+                    <Input
+                        id="pix-key"
+                        v-model="pixDirect.pix_key"
+                        autocomplete="off"
+                    />
+                    <InputError :message="pixDirect.errors.pix_key" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="pix-name">Nome do recebedor</Label>
+                    <Input
+                        id="pix-name"
+                        v-model="pixDirect.merchant_name"
+                        maxlength="60"
+                    />
+                    <InputError :message="pixDirect.errors.merchant_name" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="pix-city">Cidade</Label>
+                    <Input
+                        id="pix-city"
+                        v-model="pixDirect.merchant_city"
+                        maxlength="60"
+                    />
+                    <InputError :message="pixDirect.errors.merchant_city" />
+                </div>
+                <p class="text-xs text-muted-foreground sm:col-span-2">
+                    Sem banco, certificado ou contrato: o cardápio mostra o QR
+                    Code com o valor do pedido e o dinheiro cai direto na sua
+                    conta. O nome e a cidade aparecem para o cliente no app do
+                    banco (até 25 e 15 letras).
+                </p>
+                <div class="sm:col-span-2">
+                    <Button type="submit" :disabled="pixDirect.processing">{{
+                        provider.account ? 'Atualizar' : 'Ativar Pix direto'
+                    }}</Button>
                 </div>
             </form>
 
