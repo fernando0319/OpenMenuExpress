@@ -1,0 +1,29 @@
+[package]
+name = "menu-express-painel"
+version = "1.0.0"
+description = "OpenMenuExpress: painel da loja para Windows"
+edition = "2021"
+
+[lib]
+name = "menu_express_painel_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-opener = "2"
+serde_json = "1"
+url = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

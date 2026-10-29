@@ -1,0 +1,51 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "OpenMenuExpress",
+    "version": "1.0.0",
+    "identifier": "org.openmenuexpress.painel",
+    "build": {
+        "frontendDist": "../ui"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": ["nsis"],
+        "createUpdaterArtifacts": true,
+        "publisher": "OpenMenuExpress",
+        "shortDescription": "Painel da loja OpenMenuExpress",
+        "longDescription": "Painel do OpenMenuExpress para Windows: pedidos com alerta sonoro e notificações, mesmo com a janela minimizada.",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.ico"
+        ],
+        "windows": {
+            "webviewInstallMode": {
+                "type": "downloadBootstrapper"
+            },
+            "nsis": {
+                "installMode": "currentUser",
+                "languages": ["PortugueseBR"],
+                "displayLanguageSelector": false
+            }
+        }
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "SUBSTITUA_PELA_SUA_CHAVE_PUBLICA_DO_TAURI_SIGNER",
+            "endpoints": [
+                "https://seudominio.com.br/storage/desktop/latest.json"
+            ],
+            "windows": {
+                "installMode": "passive"
+            }
+        }
+    }
+}

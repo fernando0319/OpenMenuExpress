@@ -1,0 +1,15 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "panel",
+    "description": "The panel page (loaded from the server) may only raise the new-order notification and bring the window forward.",
+    "windows": ["main"],
+    "remote": {
+        "urls": [
+            "https://seudominio.com.br/*",
+            "https://*.seudominio.com.br/*",
+            "http://127.0.0.1:*/*",
+            "http://localhost:*/*"
+        ]
+    },
+    "permissions": ["allow-new-orders", "allow-show-panel"]
+}

@@ -1,0 +1,95 @@
+name: deploy
+
+# Builds the application (PHP dependencies + front-end) here and ships a ready release to the
+# server, so the server needs neither Node nor build tools. Runs by hand, or after the tests
+# pass on main when the repository variable DEPLOY_ON_PUSH is "true".
+#
+# Repository secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (private key of a deploy user),
+# DEPLOY_KNOWN_HOSTS (output of `ssh-keyscan <host>`). Variables: DEPLOY_PATH (app directory),
+# optional DEPLOY_PHP (php binary) and DEPLOY_FPM_RELOAD (command to reload PHP-FPM).
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && vars.DEPLOY_ON_PUSH == 'true')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      # The print agent merchants download from the panel, already pointing at this server.
+      - name: Build print agent
+        working-directory: agent
+        env:
+          SERVER_URL: ${{ vars.DEPLOY_APP_URL }}
+        run: |
+          FLAGS="-s -w -X main.defaultServer=$SERVER_URL"
+          mkdir -p ../public/downloads
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$FLAGS" -o ../public/downloads/menu-express-impressao.exe .
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$FLAGS" -o ../public/downloads/menu-express-impressao-linux .
+
+      - name: Build release
+        run: |
+          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+          cp .env.example .env
+          php artisan key:generate
+          npm ci
+          npm run build
+          rm .env
+          tar -czf "$RUNNER_TEMP/release.tar.gz" --exclude=.git --exclude=node_modules --exclude=tests --exclude=agent \
+            --exclude=storage/logs/* --exclude=storage/framework/cache/data/* .
+
+      - name: Ship and activate
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: ${{ vars.DEPLOY_PATH }}
+          PHP_BIN: ${{ vars.DEPLOY_PHP || 'php' }}
+          FPM_RELOAD: ${{ vars.DEPLOY_FPM_RELOAD }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          SSH="ssh -i $HOME/.ssh/id_deploy"
+          scp -i ~/.ssh/id_deploy "$RUNNER_TEMP/release.tar.gz" deploy/activate.sh "$USER@$HOST:/tmp/"
+          $SSH "$USER@$HOST" "PHP_BIN='$PHP_BIN' PHP_FPM_RELOAD='$FPM_RELOAD' bash /tmp/activate.sh '$APP_DIR' /tmp/release.tar.gz"
